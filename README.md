@@ -34,22 +34,39 @@ that loop in mind:
 ## Install
 
 ```bash
-pip install -r requirements.txt
+pip install tapium
+tapium setup
 ```
+
+`tapium setup` checks Python, `adb`, and a connected device, tells you
+exactly how to install anything missing (no Android Studio — just the
+~10MB platform-tools binary), and installs the on-device automation agent.
+Run `tapium doctor` any time afterward to re-check the environment without
+reinstalling anything.
+
+Full first-run walkthrough, including enabling USB debugging on the phone:
+see [AGENTS.md](AGENTS.md).
 
 Requires:
 - A device with USB debugging enabled, connected and authorized (`adb devices` should list it)
-- Python 3.10+
+- Python 3.8+
+
+Installing from this repo instead of PyPI: `pip install -e .`, or the
+older `pip install -r requirements.txt` + running `tapium.py` directly
+still works identically.
 
 ## Usage
 
 ```bash
-python tapium.py '{"action":"dump_ui"}'
-python tapium.py '{"action":"tap","text":"Sign in"}'
-python tapium.py '{"action":"input_text","field":"Email","text":"hello@example.com"}'
-python tapium.py '{"action":"swipe","direction":"up"}'
-python tapium.py '{"action":"wait_for","text":"Welcome back","timeout":15}'
+tapium '{"action":"dump_ui"}'
+tapium '{"action":"tap","text":"Sign in"}'
+tapium '{"action":"input_text","field":"Email","text":"hello@example.com"}'
+tapium '{"action":"swipe","direction":"up"}'
+tapium '{"action":"wait_for","text":"Welcome back","timeout":15}'
 ```
+
+(Running from source instead of the installed command: swap `tapium` for
+`python tapium.py` in the examples above.)
 
 Every call prints one JSON object to stdout and exits `0` on success
 (`"ok": true`) or `1` on failure (`"ok": false, "error": "..."`).

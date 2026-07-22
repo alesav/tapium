@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tapium"
+version = "0.1.0"
+description = "Single-file, AI-agent-friendly controller for driving a real Android device over USB/ADB"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["android", "adb", "uiautomator2", "automation", "ai-agent", "testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "uiautomator2>=3.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/alesav/tapium"
+Repository = "https://github.com/alesav/tapium"
+Issues = "https://github.com/alesav/tapium/issues"
+
+[project.scripts]
+tapium = "tapium:main"
+
+[tool.setuptools]
+py-modules = ["tapium"]

@@ -984,6 +984,174 @@ def action_set_location(d: u2.Device, params: dict) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+# ── environment diagnostics ────────────────────────────────────────────────────
+def _check_python() -> dict:
+    ok = sys.version_info >= (3, 8)
+    return {
+        "name": "python",
+        "ok": ok,
+        "detail": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "fix": "Install Python 3.8+ from https://www.python.org/downloads/" if not ok else None,
+    }
+
+
+def _check_uiautomator2_installed() -> dict:
+    try:
+        import uiautomator2  # noqa: F401
+        return {"name": "uiautomator2 package", "ok": True, "detail": "installed", "fix": None}
+    except ImportError:
+        return {
+            "name": "uiautomator2 package",
+            "ok": False,
+            "detail": "not installed",
+            "fix": "pip install uiautomator2",
+        }
+
+
+def _check_adb_on_path() -> dict:
+    try:
+        out = subprocess.run(["adb", "version"], capture_output=True, text=True, timeout=5)
+        first_line = out.stdout.splitlines()[0] if out.stdout else "adb found"
+        return {"name": "adb on PATH", "ok": out.returncode == 0, "detail": first_line, "fix": None}
+    except FileNotFoundError:
+        return {
+            "name": "adb on PATH",
+            "ok": False,
+            "detail": "not found",
+            "fix": (
+                "Install Android platform-tools (no Android Studio needed):\n"
+                "    macOS:   brew install android-platform-tools\n"
+                "    Linux:   sudo apt install android-tools-adb   (or download platform-tools zip)\n"
+                "    Windows: download platform-tools zip from "
+                "https://developer.android.com/tools/releases/platform-tools and add it to PATH"
+            ),
+        }
+    except Exception as e:
+        return {"name": "adb on PATH", "ok": False, "detail": str(e), "fix": "Reinstall platform-tools"}
+
+
+def _check_device_connected() -> dict:
+    try:
+        out = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=5)
+        lines = [line for line in out.stdout.splitlines()[1:] if line.strip()]
+        devices = [line.split("\t") for line in lines]
+        online = [d for d in devices if len(d) == 2 and d[1] == "device"]
+        unauthorized = [d for d in devices if len(d) == 2 and d[1] == "unauthorized"]
+
+        if online:
+            return {"name": "device connected", "ok": True, "detail": online[0][0], "fix": None}
+        if unauthorized:
+            return {
+                "name": "device connected",
+                "ok": False,
+                "detail": f"unauthorized: {unauthorized[0][0]}",
+                "fix": "Check the phone screen for an 'Allow USB debugging?' prompt and tap Allow",
+            }
+        return {
+            "name": "device connected",
+            "ok": False,
+            "detail": "no devices found",
+            "fix": (
+                "1. Enable Developer Options: Settings > About phone > tap 'Build number' 7 times\n"
+                "    2. Enable USB debugging: Settings > Developer options > USB debugging\n"
+                "    3. Connect the phone by USB (or run 'adb connect <ip>:5555' for Wi-Fi) "
+                "and accept the prompt on the device"
+            ),
+        }
+    except FileNotFoundError:
+        return {"name": "device connected", "ok": False, "detail": "adb not found", "fix": "Install adb first"}
+    except Exception as e:
+        return {"name": "device connected", "ok": False, "detail": str(e), "fix": None}
+
+
+def _check_agent_reachable() -> dict:
+    try:
+        d = u2.connect()
+        info = d.info
+        return {
+            "name": "uiautomator2 agent",
+            "ok": True,
+            "detail": f"connected, {info.get('displayWidth')}x{info.get('displayHeight')}",
+            "fix": None,
+        }
+    except Exception as e:
+        return {
+            "name": "uiautomator2 agent",
+            "ok": False,
+            "detail": str(e),
+            "fix": "Run 'tapium setup' to (re)install the on-device agent, or 'python -m uiautomator2 init'",
+        }
+
+
+def run_doctor(verbose: bool = True) -> dict:
+    """
+    Run all environment checks in order and report pass/fail per step.
+    Later checks are skipped if an earlier hard-blocking one fails, since
+    they'd fail for the same root cause and just add noise.
+    """
+    checks = []
+
+    checks.append(_check_python())
+    checks.append(_check_uiautomator2_installed())
+    checks.append(_check_adb_on_path())
+
+    if checks[-1]["ok"]:
+        checks.append(_check_device_connected())
+        if checks[-1]["ok"] and checks[1]["ok"]:
+            checks.append(_check_agent_reachable())
+
+    all_ok = all(c["ok"] for c in checks)
+
+    if verbose:
+        print("tapium doctor\n")
+        for c in checks:
+            mark = "✅" if c["ok"] else "❌"
+            print(f"{mark} {c['name']}: {c['detail']}")
+            if not c["ok"] and c["fix"]:
+                print(f"   → {c['fix']}")
+        print()
+        print("All checks passed — ready to go." if all_ok else "Some checks failed — see fixes above.")
+
+    return {"ok": all_ok, "checks": checks}
+
+
+def run_setup() -> dict:
+    """
+    Best-effort one-shot setup: checks prerequisites, and if adb + a device
+    are present but the on-device agent isn't reachable, runs
+    `uiautomator2 init` to install/refresh it. Does not attempt to install
+    Python or adb itself — those require OS-level package managers or a
+    manual download, so `doctor`'s fix hints are printed instead.
+    """
+    print("tapium setup\n")
+    result = run_doctor(verbose=True)
+
+    checks_by_name = {c["name"]: c for c in result["checks"]}
+    adb_ok = checks_by_name.get("adb on PATH", {}).get("ok")
+    device_ok = checks_by_name.get("device connected", {}).get("ok")
+    agent_ok = checks_by_name.get("uiautomator2 agent", {}).get("ok")
+
+    if adb_ok and device_ok and not agent_ok:
+        print("\nInstalling the on-device uiautomator2 agent (uiautomator2 init)...\n")
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "uiautomator2", "init"],
+                timeout=120,
+            )
+            if proc.returncode == 0:
+                print("\nAgent installed. Re-checking...\n")
+                return run_doctor(verbose=True)
+            else:
+                print(f"\n'uiautomator2 init' exited with code {proc.returncode}. See output above.")
+        except Exception as e:
+            print(f"\nCould not run 'uiautomator2 init': {e}")
+
+    if not (adb_ok and device_ok):
+        print("\nFix the ❌ items above, then run 'tapium setup' again.")
+
+    return result
+
+
 # ── dispatcher ────────────────────────────────────────────────────────────────
 ACTIONS = {
     "tap":            action_tap,
@@ -1014,6 +1182,15 @@ def main() -> None:
             "example": 'python tapium.py \'{"action":"dump_ui"}\'',
         }))
         sys.exit(1)
+
+    # Non-JSON subcommands — plain CLI, human-readable output, not JSON-in/out.
+    if sys.argv[1] == "doctor":
+        result = run_doctor(verbose=True)
+        sys.exit(0 if result["ok"] else 1)
+
+    if sys.argv[1] == "setup":
+        result = run_setup()
+        sys.exit(0 if result["ok"] else 1)
 
     try:
         params = json.loads(sys.argv[1])
