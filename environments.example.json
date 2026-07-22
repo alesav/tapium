@@ -1,0 +1,10 @@
+{
+  "staging": {
+    "base_url": "https://staging.api.example.com",
+    "token": "REPLACE_WITH_STAGING_TOKEN"
+  },
+  "production": {
+    "base_url": "https://api.example.com",
+    "token": "REPLACE_WITH_PRODUCTION_TOKEN"
+  }
+}
