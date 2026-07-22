@@ -10,6 +10,11 @@ tap things, type things, wait for things to load.
 
 Built on top of [`uiautomator2`](https://github.com/openatx/uiautomator2).
 
+**New here?** [USE_CASES.md](USE_CASES.md) walks through two full,
+worked examples — automating a repetitive app flow, and using an agent
+for exploratory QA testing and regression suites — before you write any
+code of your own.
+
 ## Why
 
 Most UI-automation tooling is built for deterministic test scripts: you
@@ -72,7 +77,8 @@ Every call prints one JSON object to stdout and exits `0` on success
 (`"ok": true`) or `1` on failure (`"ok": false, "error": "..."`).
 
 See the module docstring in `tapium.py` for the full action reference,
-and `examples/` for a worked example of wiring this into an agent loop.
+`examples/` for a worked example of wiring this into an agent loop, and
+[USE_CASES.md](USE_CASES.md) for two complete real-world patterns.
 
 ## Pairing with a backend API
 
