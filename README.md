@@ -38,6 +38,22 @@ that loop in mind:
 
 ## Install
 
+### Option A: let an AI agent do it
+
+If you have an agentic coding tool — [Claude Code](https://claude.com/product/claude-code),
+Cursor, Codex CLI, or similar — on a clean machine, give it this:
+
+> Follow the instructions at
+> https://raw.githubusercontent.com/alesav/tapium/main/AGENTS.md
+> to install Tapium and get my Android device connected.
+
+That file walks the agent through checking/installing Python, installing
+Tapium, enabling USB debugging on the phone, running `tapium setup`, and
+verifying everything with `tapium doctor` — no manual steps on your part
+beyond plugging in the phone and tapping "Allow" on the device prompt.
+
+### Option B: manual
+
 ```bash
 pip install tapium
 tapium setup
@@ -50,7 +66,8 @@ Run `tapium doctor` any time afterward to re-check the environment without
 reinstalling anything.
 
 Full first-run walkthrough, including enabling USB debugging on the phone:
-see [AGENTS.md](AGENTS.md).
+see [AGENTS.md](AGENTS.md) — the same file Option A points an agent at,
+readable step by step if you'd rather do it yourself.
 
 Requires:
 - A device with USB debugging enabled, connected and authorized (`adb devices` should list it)
